@@ -62,7 +62,8 @@ async def files_get(auth: str = Header(alias="Auth")) -> List[FileInfoOutput]:
                 author=file.author,
                 year=file.year,
                 filename=file.filename,
-                owner_external_id=file.owner_external_id
+                owner_external_id=file.owner_external_id,
+                url=current.file_path
             )
             for file in files
         ]
@@ -145,6 +146,7 @@ async def files_id_post(id: int, file: UploadFile = File(), auth: str = Header(a
 
     container = FilesContainer()
     files_service = container.get_files_service()
+    public_path = file_storage_service.put_file()
 
     try:
         content = await file.read()
@@ -159,35 +161,35 @@ async def files_id_post(id: int, file: UploadFile = File(), auth: str = Header(a
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/merge", response_model=FileInfoOutput)
-async def files_merge_post(input: MergeInput = Body(), auth: str = Header(alias="Auth")) -> FileInfoOutput:
-    owner_external_id = await get_current_user_external_id(auth)
+    return {"path":public_path}
 
-    container = FilesContainer()
-    files_service = container.get_files_service()
+@router.post("/merge")
+async def files_id_post(auth:str =Header(), input: FilesMMergeInput = Body())
+    introspect_user = await introspect(token=auth)
+    file_1= check_file_ownership(id=input.file_id_1, user=introspect_user)
+    file_2= check_file_ownership(id=input.file_id_2, user=introspect_user)
+    file_1_path=file_1.path
+    file_2_path=file_2.path
 
-    try:
-        merge_request = MergeRequest(
-            file_ids=input.file_ids,
-            title=input.title,
-            filename=input.filename
-        )
+    if file_1_path is None or file_2_path is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
-        merged_file = await files_service.merge_pdf_files(merge_request, owner_external_id)
+    file_1_local_path = file_storage_service.get_file(file_1_path, "files")
+    file_2_local_path = file_storage_service.get_file(file_2_path, "files")
 
-        return FileInfoOutput(
-            id=merged_file.id,
-            title=merged_file.title,
-            author=merged_file.author,
-            year=merged_file.year,
-            filename=merged_file.filename,
-            owner_external_id=merged_file.owner_external_id
-        )
-    except FileNotFoundException as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except UnauthorizedFileAccessException as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except MergeException as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+
+    file_1_name = file_1_path.split("/")[-1].split(".")[0]
+    file_2_name = file_2_path.split("/")[-1].split(".")[0]
+    pdfs = [file_1_local_path,file_2_local_path]
+    filename =f"{file_1_name}_{file_2_name}.pdf"
+
+    merged_path = f"files/{filename}"
+    merger = PdfMerger()
+    for pdf in pdfs:
+        merger.append(pdf)
+    merger.write(merged_path)
+    merger.close()
+    remote_merged_pathfile_storage_service.put_file(merged_path, filename)
+    os.remove(merged_path)
+    return {"path:"remote_merged_path}
