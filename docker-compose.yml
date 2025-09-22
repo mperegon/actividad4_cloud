@@ -14,10 +14,24 @@ services:
     depends_on:
       - postgres
       - minio
+      - redis
     ports:
       - "8000:80"
     networks:
       - carlemany-net
+
+redis:
+  image: redis:7.2.4
+  hostname: redis-cache
+  container_name: redis-cache
+  restart: on-failure
+  command: redis-server
+  environment:
+    - ALLOW_EMPTY_PASSWORD=yes
+  ports:
+    - "6379:6379"
+  networks:
+    - carlemany-net
 
 minio-server:
 

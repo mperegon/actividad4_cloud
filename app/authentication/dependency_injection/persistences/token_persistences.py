@@ -10,4 +10,8 @@ class TokenPersistences(containers.DeclarativeContainer):
         TokenMemoryPersistenceService
     )
 
-    carlemany = memory
+    redis = providers.Singleton(
+        TokenRedisPersistenceService
+    )
+
+    carlemany = redis

@@ -30,3 +30,11 @@ class MinioFileStorageService(FileStorageInterface):
             f"{local_folder}/{remote_identifier}"
         )
         return local_path
+
+    
+    def remoe_file(self, remote_path: str):
+        remote_identifier = remote_path.split("/")[-1]
+        self.minio_client.remove_object(
+            self.bucket_name,
+            remote_identifier
+        )

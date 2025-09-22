@@ -32,3 +32,11 @@ class MinioSettings(BaseSettings):
     backet_name: str
 
 minio_settings = MinioSettings()
+
+class RedisSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="REDIS_")
+
+    host: str
+    port: str
+
+redis_settings =RedisSettings()
